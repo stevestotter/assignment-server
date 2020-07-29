@@ -12,38 +12,55 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
+const (
+	buyAssignmentType  = "buy"
+	sellAssignmentType = "sell"
+)
+
 var validate *validator.Validate
 
-type Server struct {
+type API struct {
 	Port         string
 	MessageQueue event.Publisher
+
+	server *http.Server
 }
 
 // Start initialises and runs the API
-func (s *Server) Start() {
+func (a *API) Start() {
 	validate = validator.New()
 	validate.RegisterValidation("currency", validateCurrency)
 
 	router := httprouter.New()
-	router.POST("/buy", s.buyHandler)
-	router.POST("/sell", s.sellHandler)
+	router.POST("/buy", a.buyHandler)
+	router.POST("/sell", a.sellHandler)
 
-	// TODO: change from Fatal? As shouldn't bring down entire assignment server...
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", s.Port), router))
+	a.server = &http.Server{Addr: fmt.Sprintf(":%s", a.Port), Handler: router}
+
+	// TODO: Bring in logger to make this a critical level
+	log.Printf("Server stopped: %s", a.server.ListenAndServe())
 }
 
 func validateCurrency(fl validator.FieldLevel) bool {
 	res, _ := regexp.MatchString(`^([0-9])*\.([0-9]{2})$`, fl.Field().String())
-	fmt.Printf("%s", fl.Field().String())
 	return res
 }
 
 type Assignment struct {
 	Price    string `json:"price" validate:"required,currency"`
 	Quantity string `json:"quantity" validate:"required,numeric,excludes=-"`
+	Type     string `json:"type" validate:"isdefault"`
 }
 
-func (s *Server) buyHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func (a *API) buyHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	a.assignmentHandler(buyAssignmentType, w, r)
+}
+
+func (a *API) sellHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	a.assignmentHandler(sellAssignmentType, w, r)
+}
+
+func (a *API) assignmentHandler(assignmentType string, w http.ResponseWriter, r *http.Request) {
 	assignment := &Assignment{}
 	body := json.NewDecoder(r.Body)
 	if err := body.Decode(&assignment); err != nil {
@@ -52,13 +69,28 @@ func (s *Server) buyHandler(w http.ResponseWriter, r *http.Request, _ httprouter
 	}
 
 	if err := validate.Struct(assignment); err != nil {
-		fmt.Println(err)
+		// TODO: Change logger
+		log.Printf("Validation failed on assignment: %s\n", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-}
+	assignment.Type = assignmentType
 
-func (s *Server) sellHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	bytes, err := json.Marshal(assignment)
+	if err != nil {
+		apiErr := ErrorServer("Marshalling assignment to JSON failed")
+		log.Printf("%s: %s\n", apiErr.Detail, err)
+		apiErr.WriteJSON(w)
+		return
+	}
 
+	if err := a.MessageQueue.Publish(bytes); err != nil {
+		apiErr := ErrorServer("Failed to publish assignment to message queue")
+		log.Printf("%s: %s\n", apiErr.Detail, err)
+		apiErr.WriteJSON(w)
+		return
+	}
+
+	w.WriteHeader(http.StatusAccepted)
 }

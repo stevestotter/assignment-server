@@ -6,6 +6,7 @@ import (
 
 	"stevestotter/assignment-server/api"
 	"stevestotter/assignment-server/config"
+	"stevestotter/assignment-server/event"
 
 	"github.com/google/uuid"
 	kafka "github.com/segmentio/kafka-go"
@@ -24,8 +25,10 @@ func main() {
 	// TODO: Frontend to add assignment
 	// TODO: Tests for frontend
 
-	// TODO: API for publishing assignments
-	go api.Start()
+	queue := event.KafkaEventQueue{URL: cfg.Kafka.URL}
+
+	a := api.API{Port: cfg.API.Port, MessageQueue: queue}
+	go a.Start()
 
 	// TODO: Listen to buy & sell topics
 	// TODO: Publish assignments based on listens

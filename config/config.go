@@ -3,7 +3,12 @@ package config
 import "github.com/caarlos0/env/v6"
 
 type Config struct {
+	API   API
 	Kafka Kafka
+}
+
+type API struct {
+	Port string `env:"API_PORT" envDefault:"1001"`
 }
 
 type Kafka struct {
