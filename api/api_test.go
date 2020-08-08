@@ -2,10 +2,13 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
+	"stevestotter/assignment-server/event"
 	mock_event "stevestotter/assignment-server/mocks/event"
 
 	"testing"
@@ -15,6 +18,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const apiPort string = "1005"
+
 func TestBuyWhenValidPriceAndQuantity(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -23,29 +28,28 @@ func TestBuyWhenValidPriceAndQuantity(t *testing.T) {
 
 	mockPublisher := mock_event.NewMockPublisher(ctrl)
 	mockPublisher.EXPECT().
-		Publish(gomock.Any()).
+		Publish(gomock.Any(), event.TopicBuyerAssignment).
 		Times(1).
 		Return(nil).
-		Do(func(b []byte) {
-			assert.JSONEq(t,
-				`{"price": "2.24", "quantity": "0.5", "type": "buy"}`,
-				string(b))
+		Do(func(b []byte, topic string) {
+			assert.JSONEq(t, reqJSON, string(b))
 		})
 
-	a := API{Port: "1001", MessageQueue: mockPublisher}
-	go a.Start()
-	t.Cleanup(func() {
-		a.server.Close()
-	})
+	a := API{Port: apiPort, MessageQueue: mockPublisher}
+	err := a.Start()
+	defer a.server.Shutdown(context.Background())
+	assert.NoError(t, err)
 
 	req, err := http.NewRequest("POST",
-		"http://localhost:1001/buy",
+		fmt.Sprintf("http://localhost:%s/buy", apiPort),
 		bytes.NewBufferString(reqJSON),
 	)
+	req.Close = true
 	assert.NoError(t, err)
 
 	httpClient := &http.Client{}
 	resp, err := httpClient.Do(req)
+	defer resp.Body.Close()
 	assert.NoError(t, err)
 
 	assert.Equal(t, http.StatusAccepted, resp.StatusCode)
@@ -56,12 +60,11 @@ func TestBuyReturnsBadRequestWhenInvalidPriceAndQuantity(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockPublisher := mock_event.NewMockPublisher(ctrl)
-	a := API{Port: "1001", MessageQueue: mockPublisher}
+	a := API{Port: apiPort, MessageQueue: mockPublisher}
 
-	go a.Start()
-	t.Cleanup(func() {
-		a.server.Close()
-	})
+	err := a.Start()
+	defer a.server.Shutdown(context.Background())
+	assert.NoError(t, err)
 
 	httpClient := &http.Client{}
 
@@ -82,12 +85,14 @@ func TestBuyReturnsBadRequestWhenInvalidPriceAndQuantity(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			req, err := http.NewRequest("POST",
-				"http://localhost:1001/buy",
+				fmt.Sprintf("http://localhost:%s/buy", apiPort),
 				bytes.NewBufferString(tc.reqJSON),
 			)
+			req.Close = true
 			assert.NoError(t, err)
 
 			resp, err := httpClient.Do(req)
+			defer resp.Body.Close()
 			assert.NoError(t, err)
 
 			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
@@ -103,24 +108,26 @@ func TestBuyReturnsServerErrorIfMessageQueueReturnsError(t *testing.T) {
 
 	mockPublisher := mock_event.NewMockPublisher(ctrl)
 	mockPublisher.EXPECT().
-		Publish(gomock.Any()).
+		Publish(gomock.Any(), gomock.Any()).
 		Times(1).
 		Return(errors.New("queue error"))
 
-	a := API{Port: "1001", MessageQueue: mockPublisher}
-	go a.Start()
-	t.Cleanup(func() {
-		a.server.Close()
-	})
+	a := API{Port: apiPort, MessageQueue: mockPublisher}
+
+	err := a.Start()
+	defer a.server.Shutdown(context.Background())
+	assert.NoError(t, err)
 
 	req, err := http.NewRequest("POST",
-		"http://localhost:1001/buy",
+		fmt.Sprintf("http://localhost:%s/buy", apiPort),
 		bytes.NewBufferString(reqJSON),
 	)
+	req.Close = true
 	assert.NoError(t, err)
 
 	httpClient := &http.Client{}
 	resp, err := httpClient.Do(req)
+	defer resp.Body.Close()
 	assert.NoError(t, err)
 
 	expectedErr, _ := json.Marshal(ErrorServer("Failed to publish assignment to message queue"))
@@ -131,7 +138,6 @@ func TestBuyReturnsServerErrorIfMessageQueueReturnsError(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
 }
 
-// TODO: Add Sell tests
 func TestSellWhenValidPriceAndQuantity(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -140,29 +146,29 @@ func TestSellWhenValidPriceAndQuantity(t *testing.T) {
 
 	mockPublisher := mock_event.NewMockPublisher(ctrl)
 	mockPublisher.EXPECT().
-		Publish(gomock.Any()).
+		Publish(gomock.Any(), event.TopicSellerAssignment).
 		Times(1).
 		Return(nil).
-		Do(func(b []byte) {
-			assert.JSONEq(t,
-				`{"price": "2.24", "quantity": "0.5", "type": "sell"}`,
-				string(b))
+		Do(func(b []byte, topic string) {
+			assert.JSONEq(t, reqJSON, string(b))
 		})
 
-	a := API{Port: "1001", MessageQueue: mockPublisher}
-	go a.Start()
-	t.Cleanup(func() {
-		a.server.Close()
-	})
+	a := API{Port: apiPort, MessageQueue: mockPublisher}
+
+	err := a.Start()
+	defer a.server.Shutdown(context.Background())
+	assert.NoError(t, err)
 
 	req, err := http.NewRequest("POST",
-		"http://localhost:1001/sell",
+		fmt.Sprintf("http://localhost:%s/sell", apiPort),
 		bytes.NewBufferString(reqJSON),
 	)
+	req.Close = true
 	assert.NoError(t, err)
 
 	httpClient := &http.Client{}
 	resp, err := httpClient.Do(req)
+	defer resp.Body.Close()
 	assert.NoError(t, err)
 
 	assert.Equal(t, http.StatusAccepted, resp.StatusCode)
@@ -173,12 +179,11 @@ func TestSellReturnsBadRequestWhenInvalidPriceAndQuantity(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockPublisher := mock_event.NewMockPublisher(ctrl)
-	a := API{Port: "1001", MessageQueue: mockPublisher}
+	a := API{Port: apiPort, MessageQueue: mockPublisher}
 
-	go a.Start()
-	t.Cleanup(func() {
-		a.server.Close()
-	})
+	err := a.Start()
+	defer a.server.Shutdown(context.Background())
+	assert.NoError(t, err)
 
 	httpClient := &http.Client{}
 
@@ -199,12 +204,14 @@ func TestSellReturnsBadRequestWhenInvalidPriceAndQuantity(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			req, err := http.NewRequest("POST",
-				"http://localhost:1001/sell",
+				fmt.Sprintf("http://localhost:%s/sell", apiPort),
 				bytes.NewBufferString(tc.reqJSON),
 			)
+			req.Close = true
 			assert.NoError(t, err)
 
 			resp, err := httpClient.Do(req)
+			defer resp.Body.Close()
 			assert.NoError(t, err)
 
 			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
@@ -220,24 +227,26 @@ func TestSellReturnsServerErrorIfMessageQueueReturnsError(t *testing.T) {
 
 	mockPublisher := mock_event.NewMockPublisher(ctrl)
 	mockPublisher.EXPECT().
-		Publish(gomock.Any()).
+		Publish(gomock.Any(), gomock.Any()).
 		Times(1).
 		Return(errors.New("queue error"))
 
-	a := API{Port: "1001", MessageQueue: mockPublisher}
-	go a.Start()
-	t.Cleanup(func() {
-		a.server.Close()
-	})
+	a := API{Port: apiPort, MessageQueue: mockPublisher}
+
+	err := a.Start()
+	defer a.server.Shutdown(context.Background())
+	assert.NoError(t, err)
 
 	req, err := http.NewRequest("POST",
-		"http://localhost:1001/sell",
+		fmt.Sprintf("http://localhost:%s/sell", apiPort),
 		bytes.NewBufferString(reqJSON),
 	)
+	req.Close = true
 	assert.NoError(t, err)
 
 	httpClient := &http.Client{}
 	resp, err := httpClient.Do(req)
+	defer resp.Body.Close()
 	assert.NoError(t, err)
 
 	expectedErr, _ := json.Marshal(ErrorServer("Failed to publish assignment to message queue"))

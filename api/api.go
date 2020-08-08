@@ -4,17 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"regexp"
 	"stevestotter/assignment-server/event"
 
 	validator "github.com/go-playground/validator/v10"
 	"github.com/julienschmidt/httprouter"
-)
-
-const (
-	buyAssignmentType  = "buy"
-	sellAssignmentType = "sell"
 )
 
 var validate *validator.Validate
@@ -26,8 +22,8 @@ type API struct {
 	server *http.Server
 }
 
-// Start initialises and runs the API
-func (a *API) Start() {
+// Start initialises and runs the API in a separate goroutine (non-blocking)
+func (a *API) Start() error {
 	validate = validator.New()
 	validate.RegisterValidation("currency", validateCurrency)
 
@@ -37,8 +33,17 @@ func (a *API) Start() {
 
 	a.server = &http.Server{Addr: fmt.Sprintf(":%s", a.Port), Handler: router}
 
-	// TODO: Bring in logger to make this a critical level
-	log.Printf("Server stopped: %s", a.server.ListenAndServe())
+	ln, err := net.Listen("tcp", a.server.Addr)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		// TODO: Change logger to critical
+		log.Printf("Server stopped: %s", a.server.Serve(ln))
+	}()
+
+	return nil
 }
 
 func validateCurrency(fl validator.FieldLevel) bool {
@@ -49,18 +54,17 @@ func validateCurrency(fl validator.FieldLevel) bool {
 type Assignment struct {
 	Price    string `json:"price" validate:"required,currency"`
 	Quantity string `json:"quantity" validate:"required,numeric,excludes=-"`
-	Type     string `json:"type" validate:"isdefault"`
 }
 
 func (a *API) buyHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	a.assignmentHandler(buyAssignmentType, w, r)
+	a.assignmentHandler(event.TopicBuyerAssignment, w, r)
 }
 
 func (a *API) sellHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	a.assignmentHandler(sellAssignmentType, w, r)
+	a.assignmentHandler(event.TopicSellerAssignment, w, r)
 }
 
-func (a *API) assignmentHandler(assignmentType string, w http.ResponseWriter, r *http.Request) {
+func (a *API) assignmentHandler(eventTopic string, w http.ResponseWriter, r *http.Request) {
 	assignment := &Assignment{}
 	body := json.NewDecoder(r.Body)
 	if err := body.Decode(&assignment); err != nil {
@@ -75,8 +79,6 @@ func (a *API) assignmentHandler(assignmentType string, w http.ResponseWriter, r 
 		return
 	}
 
-	assignment.Type = assignmentType
-
 	bytes, err := json.Marshal(assignment)
 	if err != nil {
 		apiErr := ErrorServer("Marshalling assignment to JSON failed")
@@ -85,7 +87,7 @@ func (a *API) assignmentHandler(assignmentType string, w http.ResponseWriter, r 
 		return
 	}
 
-	if err := a.MessageQueue.Publish(bytes); err != nil {
+	if err := a.MessageQueue.Publish(bytes, eventTopic); err != nil {
 		apiErr := ErrorServer("Failed to publish assignment to message queue")
 		log.Printf("%s: %s\n", apiErr.Detail, err)
 		apiErr.WriteJSON(w)
