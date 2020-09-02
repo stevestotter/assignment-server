@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"stevestotter/assignment-server/assignment"
 	"stevestotter/assignment-server/event"
 
 	validator "github.com/go-playground/validator/v10"
@@ -51,11 +52,6 @@ func validateCurrency(fl validator.FieldLevel) bool {
 	return res
 }
 
-type Assignment struct {
-	Price    string `json:"price" validate:"required,currency"`
-	Quantity string `json:"quantity" validate:"required,numeric,excludes=-"`
-}
-
 func (a *API) buyHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	a.assignmentHandler(event.TopicBuyerAssignment, w, r)
 }
@@ -65,7 +61,7 @@ func (a *API) sellHandler(w http.ResponseWriter, r *http.Request, _ httprouter.P
 }
 
 func (a *API) assignmentHandler(eventTopic string, w http.ResponseWriter, r *http.Request) {
-	assignment := &Assignment{}
+	assignment := &assignment.Assignment{}
 	body := json.NewDecoder(r.Body)
 	if err := body.Decode(&assignment); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -87,6 +83,7 @@ func (a *API) assignmentHandler(eventTopic string, w http.ResponseWriter, r *htt
 		return
 	}
 
+	// TODO: Move to assignment package
 	if err := a.MessageQueue.Publish(bytes, eventTopic); err != nil {
 		apiErr := ErrorServer("Failed to publish assignment to message queue")
 		log.Printf("%s: %s\n", apiErr.Detail, err)

@@ -3,8 +3,9 @@ package config
 import "github.com/caarlos0/env/v6"
 
 type Config struct {
-	API   API
-	Kafka Kafka
+	API       API
+	Kafka     Kafka
+	Generator Generator
 }
 
 type API struct {
@@ -13,6 +14,11 @@ type API struct {
 
 type Kafka struct {
 	URL string `env:"KAFKA_URL" envDefault:"localhost:9092"`
+}
+
+type Generator struct {
+	PercentageChangeMin float64 `env:"GENERATOR_PERCENTAGE_CHANGE_MIN" envDefault:"2"`
+	PercentageChangeMax float64 `env:"GENERATOR_PERCENTAGE_CHANGE_MAX" envDefault:"5"`
 }
 
 func NewConfig() (*Config, error) {

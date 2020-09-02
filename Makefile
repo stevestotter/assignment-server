@@ -20,7 +20,7 @@ test:
 
 # Run integration tests (tests with Integration in their name)
 test-integration:
-	go test -count=1 -run 'Integration' -timeout 30s ./...
+	go test -count=1 -run 'Integration' -timeout 60s ./...
 
 docker-up:
 	docker-compose up --build -d

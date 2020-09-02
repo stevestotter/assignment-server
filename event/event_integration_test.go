@@ -43,6 +43,21 @@ func readMessages(topic string, numMessages int) (chan []byte, chan bool) {
 	return mChan, done
 }
 
+func writeMessages(topic string, messages []kafka.Message) {
+	w := kafka.NewWriter(kafka.WriterConfig{
+		Brokers:  []string{kafkaAddress},
+		Topic:    topic,
+		Balancer: &kafka.Hash{},
+	})
+	defer w.Close()
+
+	err := w.WriteMessages(context.Background(), messages...)
+
+	if err != nil {
+		fmt.Printf("Error on kafka write: %s", err)
+	}
+}
+
 func TestIntegrationKafkaQueuePublishSendsMessageToKafka(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -62,4 +77,22 @@ func TestIntegrationKafkaQueuePublishSendsMessageToKafka(t *testing.T) {
 
 	// Wait for kafka close before finishing test
 	<-done
+}
+
+func TestIntegrationKafkaQueueSubscribeListensToMessagesFromKafka(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	expectedMessage := kafka.Message{Value: []byte("hello")}
+
+	kq := &KafkaQueue{URL: kafkaAddress}
+	messageChan, err := kq.Subscribe(TopicBuyerAssignment, "a-group")
+
+	assert.NoError(t, err)
+
+	writeMessages(TopicBuyerAssignment, []kafka.Message{expectedMessage})
+	m := <-messageChan
+
+	assert.Equal(t, string(expectedMessage.Value), string(m))
 }

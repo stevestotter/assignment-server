@@ -15,14 +15,28 @@ const (
 	TopicSellerTrade      string = "seller-trade"
 	TopicBuyerAssignment  string = "buyer-assignment"
 	TopicSellerAssignment string = "seller-assignment"
+
+	GroupBuyer  string = "buyer"
+	GroupSeller string = "seller"
 )
+
+type Trade struct {
+	AssignmentID int    `json:"assignmentId"`
+	Price        string `json:"price"`
+	Quantity     string `json:"quantity"`
+}
+
+type ListenPublisher interface {
+	Listener
+	Publisher
+}
 
 type Publisher interface {
 	Publish(message []byte, topic string) error
 }
 
 type Listener interface {
-	Subscribe(topic string) (<-chan []byte, error)
+	Subscribe(topic string, group string) (<-chan []byte, error)
 }
 
 type KafkaQueue struct {
@@ -51,4 +65,37 @@ func (k *KafkaQueue) Publish(message []byte, topic string) error {
 	}
 
 	return nil
+}
+
+func (k *KafkaQueue) Subscribe(topic string, group string) (<-chan []byte, error) {
+	mChan := make(chan []byte)
+
+	r := kafka.NewReader(kafka.ReaderConfig{
+		Brokers:  []string{k.URL},
+		GroupID:  group,
+		Topic:    topic,
+		MinBytes: 10e3, // 10KB
+		MaxBytes: 10e6, // 10MB
+	})
+	r.SetOffset(0)
+
+	go func() {
+		defer func() {
+			r.Close()
+			close(mChan)
+		}()
+
+		for {
+			m, err := r.ReadMessage(context.Background())
+			if err != nil {
+				// TODO: Change logger
+				log.Printf("Error on kafka read: %s\n", err)
+				continue
+			}
+			mChan <- m.Value
+		}
+	}()
+
+	return mChan, nil
+
 }

@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"stevestotter/assignment-server/api"
+	"stevestotter/assignment-server/assignment"
 	"stevestotter/assignment-server/config"
 	"stevestotter/assignment-server/event"
 )
@@ -16,11 +17,8 @@ func main() {
 
 	cfg, err := config.NewConfig()
 	if err != nil {
-		log.Fatalf("Error processing env config: %s", cfg)
+		log.Fatalf("Error processing env config: %s", err)
 	}
-
-	// TODO: Frontend to add assignment
-	// TODO: Tests for frontend
 
 	queue := &event.KafkaQueue{URL: cfg.Kafka.URL}
 
@@ -31,10 +29,14 @@ func main() {
 		log.Fatalf("Couldn't start API server: %s", err)
 	}
 
-	// TODO: remove when blocking call is made
-	for {
+	g := assignment.Generator{
+		MessageQueue:        queue,
+		PercentageChangeMin: cfg.Generator.PercentageChangeMin,
+		PercentageChangeMax: cfg.Generator.PercentageChangeMax,
 	}
 
-	// TODO: Listen to buy & sell topics
-	// TODO: Publish assignments based on listens
+	err = g.GenerateFromTrades()
+	if err != nil {
+		log.Fatalf("Couldn't start generator for trades: %s", err)
+	}
 }
