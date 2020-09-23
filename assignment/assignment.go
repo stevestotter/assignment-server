@@ -10,7 +10,7 @@ import (
 	"strconv"
 )
 
-//go:generate go run -mod=mod github.com/golang/mock/mockgen --source=assignment.go --destination=../mocks/assignment/assignment.go
+//go:generate go run -mod=mod github.com/golang/mock/mockgen --build_flags=-mod=mod --source=assignment.go --destination=../mocks/assignment/assignment.go
 
 // Assignment is a directive given to agents (buy/sell) in a market
 type Assignment struct {

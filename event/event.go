@@ -8,7 +8,7 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-//go:generate go run -mod=mod github.com/golang/mock/mockgen --source=event.go --destination=../mocks/event/event.go
+//go:generate go run -mod=mod github.com/golang/mock/mockgen --build_flags=-mod=mod --source=event.go --destination=../mocks/event/event.go
 
 const (
 	TopicBuyerTrade       string = "buyer-trade"
