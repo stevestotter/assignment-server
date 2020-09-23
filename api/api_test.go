@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"stevestotter/assignment-server/event"
-	mock_event "stevestotter/assignment-server/mocks/event"
+	"stevestotter/assignment-server/assignment"
+	mock_assignment "stevestotter/assignment-server/mocks/assignment"
 
 	"testing"
 
@@ -25,17 +25,18 @@ func TestBuyWhenValidPriceAndQuantity(t *testing.T) {
 	defer ctrl.Finish()
 
 	reqJSON := `{"price": "2.24", "quantity": "0.5"}`
+	expAssignment := assignment.Assignment{
+		Price:    "2.24",
+		Quantity: "0.5",
+	}
 
-	mockPublisher := mock_event.NewMockPublisher(ctrl)
-	mockPublisher.EXPECT().
-		Publish(gomock.Any(), event.TopicBuyerAssignment).
+	mockSubmitter := mock_assignment.NewMockSubmitter(ctrl)
+	mockSubmitter.EXPECT().
+		SubmitAssignment(expAssignment, assignment.Buy).
 		Times(1).
-		Return(nil).
-		Do(func(b []byte, topic string) {
-			assert.JSONEq(t, reqJSON, string(b))
-		})
+		Return(nil)
 
-	a := API{Port: apiPort, MessageQueue: mockPublisher}
+	a := API{Port: apiPort, AssignmentSubmitter: mockSubmitter}
 	err := a.Start()
 	defer a.server.Shutdown(context.Background())
 	assert.NoError(t, err)
@@ -59,8 +60,8 @@ func TestBuyReturnsBadRequestWhenInvalidPriceAndQuantity(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockPublisher := mock_event.NewMockPublisher(ctrl)
-	a := API{Port: apiPort, MessageQueue: mockPublisher}
+	mockSubmitter := mock_assignment.NewMockSubmitter(ctrl)
+	a := API{Port: apiPort, AssignmentSubmitter: mockSubmitter}
 
 	err := a.Start()
 	defer a.server.Shutdown(context.Background())
@@ -106,13 +107,13 @@ func TestBuyReturnsServerErrorIfMessageQueueReturnsError(t *testing.T) {
 
 	reqJSON := `{"price": "2.24", "quantity": "0.5"}`
 
-	mockPublisher := mock_event.NewMockPublisher(ctrl)
-	mockPublisher.EXPECT().
-		Publish(gomock.Any(), gomock.Any()).
+	mockSubmitter := mock_assignment.NewMockSubmitter(ctrl)
+	mockSubmitter.EXPECT().
+		SubmitAssignment(gomock.Any(), gomock.Any()).
 		Times(1).
 		Return(errors.New("queue error"))
 
-	a := API{Port: apiPort, MessageQueue: mockPublisher}
+	a := API{Port: apiPort, AssignmentSubmitter: mockSubmitter}
 
 	err := a.Start()
 	defer a.server.Shutdown(context.Background())
@@ -130,7 +131,7 @@ func TestBuyReturnsServerErrorIfMessageQueueReturnsError(t *testing.T) {
 	defer resp.Body.Close()
 	assert.NoError(t, err)
 
-	expectedErr, _ := json.Marshal(ErrorServer("Failed to publish assignment to message queue"))
+	expectedErr, _ := json.Marshal(ErrorServer("Failed to submit assignment"))
 	body, _ := ioutil.ReadAll(resp.Body)
 
 	assert.JSONEq(t, string(expectedErr), string(body))
@@ -143,17 +144,19 @@ func TestSellWhenValidPriceAndQuantity(t *testing.T) {
 	defer ctrl.Finish()
 
 	reqJSON := `{"price": "2.24", "quantity": "0.5"}`
+	expAssignment := assignment.Assignment{
+		Price:    "2.24",
+		Quantity: "0.5",
+	}
 
-	mockPublisher := mock_event.NewMockPublisher(ctrl)
-	mockPublisher.EXPECT().
-		Publish(gomock.Any(), event.TopicSellerAssignment).
+	// TODO finish off changing tests to use mockSubmitter!
+	mockSubmitter := mock_assignment.NewMockSubmitter(ctrl)
+	mockSubmitter.EXPECT().
+		SubmitAssignment(expAssignment, assignment.Sell).
 		Times(1).
-		Return(nil).
-		Do(func(b []byte, topic string) {
-			assert.JSONEq(t, reqJSON, string(b))
-		})
+		Return(nil)
 
-	a := API{Port: apiPort, MessageQueue: mockPublisher}
+	a := API{Port: apiPort, AssignmentSubmitter: mockSubmitter}
 
 	err := a.Start()
 	defer a.server.Shutdown(context.Background())
@@ -178,8 +181,8 @@ func TestSellReturnsBadRequestWhenInvalidPriceAndQuantity(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockPublisher := mock_event.NewMockPublisher(ctrl)
-	a := API{Port: apiPort, MessageQueue: mockPublisher}
+	mockSubmitter := mock_assignment.NewMockSubmitter(ctrl)
+	a := API{Port: apiPort, AssignmentSubmitter: mockSubmitter}
 
 	err := a.Start()
 	defer a.server.Shutdown(context.Background())
@@ -225,13 +228,13 @@ func TestSellReturnsServerErrorIfMessageQueueReturnsError(t *testing.T) {
 
 	reqJSON := `{"price": "2.24", "quantity": "0.5"}`
 
-	mockPublisher := mock_event.NewMockPublisher(ctrl)
-	mockPublisher.EXPECT().
-		Publish(gomock.Any(), gomock.Any()).
+	mockSubmitter := mock_assignment.NewMockSubmitter(ctrl)
+	mockSubmitter.EXPECT().
+		SubmitAssignment(gomock.Any(), gomock.Any()).
 		Times(1).
 		Return(errors.New("queue error"))
 
-	a := API{Port: apiPort, MessageQueue: mockPublisher}
+	a := API{Port: apiPort, AssignmentSubmitter: mockSubmitter}
 
 	err := a.Start()
 	defer a.server.Shutdown(context.Background())
@@ -249,7 +252,7 @@ func TestSellReturnsServerErrorIfMessageQueueReturnsError(t *testing.T) {
 	defer resp.Body.Close()
 	assert.NoError(t, err)
 
-	expectedErr, _ := json.Marshal(ErrorServer("Failed to publish assignment to message queue"))
+	expectedErr, _ := json.Marshal(ErrorServer("Failed to submit assignment"))
 	body, _ := ioutil.ReadAll(resp.Body)
 
 	assert.JSONEq(t, string(expectedErr), string(body))

@@ -10,8 +10,6 @@ import (
 	"stevestotter/assignment-server/event"
 )
 
-const topic string = "buyer-trade"
-
 func main() {
 	fmt.Println("Started")
 
@@ -22,20 +20,20 @@ func main() {
 
 	queue := &event.KafkaQueue{URL: cfg.Kafka.URL}
 
-	a := api.API{Port: cfg.API.Port, MessageQueue: queue}
+	generator := assignment.Generator{
+		MessageQueue:        queue,
+		PercentageChangeMin: cfg.Generator.PercentageChangeMin,
+		PercentageChangeMax: cfg.Generator.PercentageChangeMax,
+	}
+
+	a := api.API{Port: cfg.API.Port, AssignmentSubmitter: &generator}
 
 	err = a.Start()
 	if err != nil {
 		log.Fatalf("Couldn't start API server: %s", err)
 	}
 
-	g := assignment.Generator{
-		MessageQueue:        queue,
-		PercentageChangeMin: cfg.Generator.PercentageChangeMin,
-		PercentageChangeMax: cfg.Generator.PercentageChangeMax,
-	}
-
-	err = g.GenerateFromTrades()
+	err = generator.GenerateFromTrades()
 	if err != nil {
 		log.Fatalf("Couldn't start generator for trades: %s", err)
 	}
