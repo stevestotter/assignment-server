@@ -23,8 +23,8 @@ jobs:
       - name: Generating mocks
         run: make mocks
 
-      - name: Grabbing dependencies
-        run: make deps
+      - name: Debug directory
+        run: ls -lh
 
-      - name: Run unit tests
-        run: make test
+      - name: Run Docker Test (all tests)
+        run: make docker-test

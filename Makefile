@@ -30,6 +30,7 @@ docker-down:
 
 docker-test: 
 	docker-compose up --build -d 
+	docker exec -it assignment-server sh -c 'pwd && ls -lh'
 	docker exec -it assignment-server sh -c '\
 		make test && make test-integration'
 	docker-compose down
