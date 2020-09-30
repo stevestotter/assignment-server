@@ -2,22 +2,27 @@ package api
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
+	"stevestotter/assignment-server/event"
 )
 
 const (
-	errServer = 1000
+	errUnexpected  = 1000
+	errSubmitError = 1001
 )
 
-func ErrorServer(detail string) Error {
+// ErrorUnexpected is a detailed HTTP 500 message for unexpected errors
+func ErrorUnexpected(detail string) Error {
 	return Error{
 		Title:  "Unexpected Error",
 		Detail: detail,
-		Status: 500,
-		Code:   errServer,
+		Status: http.StatusInternalServerError,
+		Code:   errUnexpected,
 	}
 }
 
+// Error is a JSON error that adheres to the JSON API spec
 type Error struct {
 	Title  string `json:"title"`
 	Detail string `json:"detail"`
@@ -36,4 +41,23 @@ func (e *Error) WriteJSON(w http.ResponseWriter) error {
 	w.WriteHeader(e.Status)
 	w.Write(b)
 	return nil
+}
+
+func handleError(w http.ResponseWriter, err error) {
+	var apiErr Error
+
+	switch err {
+	case event.ErrQueueWrite:
+		apiErr = Error{
+			Title:  "Could not submit event",
+			Detail: err.Error(),
+			Status: http.StatusInternalServerError,
+			Code:   errSubmitError,
+		}
+	default:
+		apiErr = ErrorUnexpected(err.Error())
+	}
+
+	log.Printf("%s: %s\n", apiErr.Title, err)
+	apiErr.WriteJSON(w)
 }

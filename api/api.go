@@ -15,6 +15,7 @@ import (
 
 var validate *validator.Validate
 
+// API routes and handles assignment requests
 type API struct {
 	Port                string
 	AssignmentSubmitter assignment.Submitter
@@ -51,15 +52,15 @@ func validateCurrency(fl validator.FieldLevel) bool {
 	return res
 }
 
-func (a *API) buyHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	a.assignmentHandler(w, r, assignment.Buy)
+func (api *API) buyHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	api.assignmentHandler(w, r, assignment.Buy)
 }
 
-func (a *API) sellHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	a.assignmentHandler(w, r, assignment.Sell)
+func (api *API) sellHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	api.assignmentHandler(w, r, assignment.Sell)
 }
 
-func (a *API) assignmentHandler(w http.ResponseWriter, r *http.Request, t assignment.Type) {
+func (api *API) assignmentHandler(w http.ResponseWriter, r *http.Request, t assignment.Type) {
 	assignment := assignment.Assignment{}
 	body := json.NewDecoder(r.Body)
 	if err := body.Decode(&assignment); err != nil {
@@ -74,11 +75,9 @@ func (a *API) assignmentHandler(w http.ResponseWriter, r *http.Request, t assign
 		return
 	}
 
-	err := a.AssignmentSubmitter.SubmitAssignment(assignment, t)
+	err := api.AssignmentSubmitter.SubmitAssignment(assignment, t)
 	if err != nil {
-		apiErr := ErrorServer("Failed to submit assignment")
-		log.Printf("%s: %s\n", apiErr.Detail, err)
-		apiErr.WriteJSON(w)
+		handleError(w, err)
 		return
 	}
 

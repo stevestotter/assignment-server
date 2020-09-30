@@ -52,8 +52,8 @@ func TestBuyWhenValidPriceAndQuantity(t *testing.T) {
 
 	httpClient := &http.Client{}
 	resp, err := httpClient.Do(req)
-	defer resp.Body.Close()
 	assert.NoError(t, err)
+	defer resp.Body.Close()
 
 	assert.Equal(t, http.StatusAccepted, resp.StatusCode)
 }
@@ -95,8 +95,8 @@ func TestBuyReturnsBadRequestWhenInvalidPriceAndQuantity(t *testing.T) {
 			assert.NoError(t, err)
 
 			resp, err := httpClient.Do(req)
-			defer resp.Body.Close()
 			assert.NoError(t, err)
+			defer resp.Body.Close()
 
 			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		})
@@ -130,8 +130,8 @@ func TestBuyReturnsServerErrorIfMessageQueueReturnsError(t *testing.T) {
 
 	httpClient := &http.Client{}
 	resp, err := httpClient.Do(req)
-	defer resp.Body.Close()
 	assert.NoError(t, err)
+	defer resp.Body.Close()
 
 	expectedErr, _ := json.Marshal(ErrorServer("Failed to submit assignment"))
 	body, _ := ioutil.ReadAll(resp.Body)
@@ -151,7 +151,6 @@ func TestSellWhenValidPriceAndQuantity(t *testing.T) {
 		Quantity: "0.5",
 	}
 
-	// TODO finish off changing tests to use mockSubmitter!
 	mockSubmitter := mock_assignment.NewMockSubmitter(ctrl)
 	mockSubmitter.EXPECT().
 		SubmitAssignment(expAssignment, assignment.Sell).
@@ -173,8 +172,8 @@ func TestSellWhenValidPriceAndQuantity(t *testing.T) {
 
 	httpClient := &http.Client{}
 	resp, err := httpClient.Do(req)
-	defer resp.Body.Close()
 	assert.NoError(t, err)
+	defer resp.Body.Close()
 
 	assert.Equal(t, http.StatusAccepted, resp.StatusCode)
 }
@@ -216,8 +215,8 @@ func TestSellReturnsBadRequestWhenInvalidPriceAndQuantity(t *testing.T) {
 			assert.NoError(t, err)
 
 			resp, err := httpClient.Do(req)
-			defer resp.Body.Close()
 			assert.NoError(t, err)
+			defer resp.Body.Close()
 
 			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		})
@@ -251,8 +250,8 @@ func TestSellReturnsServerErrorIfMessageQueueReturnsError(t *testing.T) {
 
 	httpClient := &http.Client{}
 	resp, err := httpClient.Do(req)
-	defer resp.Body.Close()
 	assert.NoError(t, err)
+	defer resp.Body.Close()
 
 	expectedErr, _ := json.Marshal(ErrorServer("Failed to submit assignment"))
 	body, _ := ioutil.ReadAll(resp.Body)

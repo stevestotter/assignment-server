@@ -118,6 +118,7 @@ func (g *Generator) submitNewAssignmentFromTrade(trade *event.Trade, percentChan
 	return g.SubmitAssignment(newAssignment, t)
 }
 
+// SubmitAssignment submits an assignment of type t to a message queue
 func (g *Generator) SubmitAssignment(a Assignment, t Type) error {
 	assignmentBytes, err := json.Marshal(a)
 	if err != nil {
