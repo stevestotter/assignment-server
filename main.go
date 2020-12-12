@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"log"
 
-	"stevestotter/assignment-server/api"
-	"stevestotter/assignment-server/assignment"
-	"stevestotter/assignment-server/config"
-	"stevestotter/assignment-server/event"
+	"github.com/stevestotter/assignment-server/api"
+	"github.com/stevestotter/assignment-server/assignment"
+	"github.com/stevestotter/assignment-server/config"
+	"github.com/stevestotter/assignment-server/event"
 )
 
 func main() {

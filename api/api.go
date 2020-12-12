@@ -7,7 +7,8 @@ import (
 	"net"
 	"net/http"
 	"regexp"
-	"stevestotter/assignment-server/assignment"
+
+	"github.com/stevestotter/assignment-server/assignment"
 
 	validator "github.com/go-playground/validator/v10"
 	"github.com/julienschmidt/httprouter"

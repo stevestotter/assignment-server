@@ -5,11 +5,13 @@ package assignment
 import (
 	"encoding/json"
 	"errors"
-	"stevestotter/assignment-server/event"
-	mock_event "stevestotter/assignment-server/mocks/event"
 	"strconv"
 	"sync"
 	"testing"
+
+	"github.com/stevestotter/assignment-server/event"
+
+	mock_event "github.com/stevestotter/assignment-server/mocks/event"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"

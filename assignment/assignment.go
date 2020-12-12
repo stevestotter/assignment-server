@@ -6,8 +6,9 @@ import (
 	"log"
 	"math"
 	"math/rand"
-	"stevestotter/assignment-server/event"
 	"strconv"
+
+	"github.com/stevestotter/assignment-server/event"
 )
 
 //go:generate go run -mod=mod github.com/golang/mock/mockgen --build_flags=-mod=mod --source=assignment.go --destination=../mocks/assignment/assignment.go

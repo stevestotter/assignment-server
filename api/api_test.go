@@ -10,8 +10,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"stevestotter/assignment-server/assignment"
-	mock_assignment "stevestotter/assignment-server/mocks/assignment"
+
+	mock_assignment "github.com/stevestotter/assignment-server/mocks/assignment"
+
+	"github.com/stevestotter/assignment-server/assignment"
 
 	"testing"
 

@@ -4,7 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"stevestotter/assignment-server/event"
+
+	"github.com/stevestotter/assignment-server/event"
 )
 
 const (
